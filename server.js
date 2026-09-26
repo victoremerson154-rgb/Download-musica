@@ -1,7 +1,8 @@
 const express = require("express");
+const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
-const { spawn } = require("child_process");
+const crypto = require("crypto");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,59 +17,90 @@ app.post("/api/download", (req, res) => {
     const { url } = req.body;
 
     if (!url || !/^https?:\/\//i.test(url)) {
-        return res.status(400).json({
-            error: "Envie um link válido."
-        });
+        return res.status(400).json({ error: "Link inválido." });
     }
 
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const id = crypto.randomBytes(12).toString("hex");
     const output = path.join(DOWNLOAD_DIR, `${id}.%(ext)s`);
 
     const args = [
+        "-m", "yt_dlp",
         "--no-playlist",
-        "-f", "bestvideo[ext=mp4]+bestaudio/best[ext=mp4]/best",
-        "--merge-output-format", "mp4",
-        "--remote-components", "ejs:github",
-        "--extractor-args", "youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416",
-        "--extractor-args", "youtube:player-client=mweb",
         "--js-runtimes", "deno",
+        "-f", "bestaudio[ext=m4a]/bestaudio",
+        "--no-write-thumbnail",
+        "--no-write-info-json",
+        "--no-write-playlist-metafiles",
+        "--no-embed-metadata",
         "-o", output,
+        "--print", "after_move:filepath",
         url
     ];
 
-    const process = spawn("yt-dlp", [
-        "--js-runtimes", "deno:/root/.deno/bin/deno",
-        ...args
-    ]);
+    console.log("Iniciando áudio direto:", url);
 
-    let errorOutput = "";
+    const child = spawn("python", args);
 
-    process.stderr.on("data", data => {
-        errorOutput += data.toString();
+    let outputText = "";
+
+    child.stdout.on("data", data => {
+        const text = data.toString();
+        outputText += text;
+        console.log(text);
     });
 
-    process.on("close", code => {
+    child.stderr.on("data", data => {
+        console.log(data.toString());
+    });
+
+    child.on("error", error => {
+        console.error(error);
+
+        if (!res.headersSent) {
+            res.status(500).json({
+                error: "Não foi possível iniciar o download."
+            });
+        }
+    });
+
+    child.on("close", code => {
         if (code !== 0) {
-            console.error(errorOutput);
-            return res.status(500).json({
-                error: "Não foi possível processar o vídeo."
-            });
+            if (!res.headersSent) {
+                res.status(500).json({
+                    error: "Não foi possível baixar o áudio."
+                });
+            }
+            return;
         }
 
-        const files = fs.readdirSync(DOWNLOAD_DIR)
-            .filter(file => file.startsWith(id + "."));
+        const lines = outputText
+            .split(/\r?\n/)
+            .map(line => line.trim())
+            .filter(Boolean);
 
-        if (!files.length) {
-            return res.status(500).json({
-                error: "O arquivo não foi encontrado."
-            });
+        let file = lines.find(line =>
+            /\.(m4a|webm|opus|mp4)$/i.test(line) &&
+            fs.existsSync(line)
+        );
+
+        if (file) {
+            file = path.basename(file);
+        } else {
+            file = fs.readdirSync(DOWNLOAD_DIR).find(name =>
+                name.startsWith(id + ".") &&
+                /\.(m4a|webm|opus|mp4)$/i.test(name)
+            );
         }
 
-        const filename = files[0];
+        if (!file) {
+            return res.status(500).json({
+                error: "O áudio não foi encontrado."
+            });
+        }
 
         res.json({
             success: true,
-            download: `/download/${encodeURIComponent(filename)}`
+            download: `/download/${encodeURIComponent(file)}`
         });
     });
 });
@@ -81,16 +113,18 @@ app.get("/download/:filename", (req, res) => {
         return res.status(404).send("Arquivo não encontrado.");
     }
 
-    res.download(file, "video.mp4", () => {
-        fs.unlink(file, () => {});
+    res.download(file, filename, error => {
+        if (!error) {
+            setTimeout(() => fs.unlink(file, () => {}), 3000);
+        }
     });
 });
 
+app.get("/health", (req, res) => {
+    res.json({ online: true });
+});
+
 app.listen(PORT, "0.0.0.0", () => {
-    console.log("");
-    console.log("================================");
-    console.log("      BAIXADOR MP4 ONLINE");
-    console.log("================================");
-    console.log(`Servidor: http://0.0.0.0:${PORT}`);
-    console.log("");
+    console.log("BAIXADOR DE ÁUDIO RÁPIDO ONLINE");
+    console.log(`Porta: ${PORT}`);
 });

@@ -1,19 +1,21 @@
-const input = document.getElementById("url");
+const urlInput = document.getElementById("url");
 const button = document.getElementById("downloadBtn");
 const status = document.getElementById("status");
-const result = document.getElementById("result");
+const downloadLink = document.getElementById("downloadLink");
 
 button.addEventListener("click", async () => {
-    const url = input.value.trim();
+    const url = urlInput.value.trim();
+
+    downloadLink.style.display = "none";
 
     if (!url) {
-        status.textContent = "Cole um link primeiro.";
+        status.textContent = "Cole o link do vídeo.";
         return;
     }
 
     button.disabled = true;
-    result.innerHTML = "";
-    status.textContent = "Processando vídeo...";
+    button.textContent = "⏳ Preparando...";
+    status.textContent = "Baixando vídeo e áudio...";
 
     try {
         const response = await fetch("/api/download", {
@@ -26,19 +28,20 @@ button.addEventListener("click", async () => {
 
         const data = await response.json();
 
-        if (!response.ok) {
-            throw new Error(data.error || "Erro ao processar.");
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || "Erro ao baixar o vídeo.");
         }
 
-        status.textContent = "Vídeo pronto!";
-        result.innerHTML = `
-            <a class="download" href="${data.download}">
-                ⬇️ Baixar MP4
-            </a>
-        `;
+        status.textContent = "✅ Vídeo pronto!";
+
+        downloadLink.href = data.download;
+        downloadLink.download = "video.mp4";
+        downloadLink.style.display = "block";
+
     } catch (error) {
-        status.textContent = error.message;
+        status.textContent = "❌ " + error.message;
     } finally {
         button.disabled = false;
+        button.textContent = "⬇️ Baixar vídeo";
     }
 });
