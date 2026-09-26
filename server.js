@@ -29,6 +29,7 @@ app.post("/api/download", (req, res) => {
         "-f", "bestvideo[ext=mp4]+bestaudio/best[ext=mp4]/best",
         "--merge-output-format", "mp4",
         "--remote-components", "ejs:github",
+        "--extractor-args", "youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416",
         "--js-runtimes", "deno",
         "-o", output,
         url
