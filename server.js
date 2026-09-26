@@ -27,6 +27,7 @@ app.post("/api/download", (req, res) => {
         "-m", "yt_dlp",
         "--no-playlist",
         "--js-runtimes", "deno",
+        "--extractor-args", "youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416",
         "-f", "bestaudio[ext=m4a]/bestaudio",
         "--no-write-thumbnail",
         "--no-write-info-json",
