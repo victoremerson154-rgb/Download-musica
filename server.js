@@ -28,6 +28,8 @@ app.post("/api/download", (req, res) => {
         "--no-playlist",
         "-f", "bestvideo[ext=mp4]+bestaudio/best[ext=mp4]/best",
         "--merge-output-format", "mp4",
+        "--remote-components", "ejs:github",
+        "--js-runtimes", "deno",
         "-o", output,
         url
     ];
