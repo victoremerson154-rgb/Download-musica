@@ -39,7 +39,7 @@ app.post("/api/download", (req, res) => {
 
     console.log("Iniciando áudio direto:", url);
 
-    const child = spawn("python", args);
+    const child = spawn("python3", args);
 
     let outputText = "";
 
