@@ -34,7 +34,10 @@ app.post("/api/download", (req, res) => {
         url
     ];
 
-    const process = spawn("yt-dlp", args);
+    const process = spawn("yt-dlp", [
+        "--js-runtimes", "deno:/root/.deno/bin/deno",
+        ...args
+    ]);
 
     let errorOutput = "";
 
