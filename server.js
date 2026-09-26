@@ -30,6 +30,7 @@ app.post("/api/download", (req, res) => {
         "--merge-output-format", "mp4",
         "--remote-components", "ejs:github",
         "--extractor-args", "youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416",
+        "--extractor-args", "youtube:player-client=mweb",
         "--js-runtimes", "deno",
         "-o", output,
         url
